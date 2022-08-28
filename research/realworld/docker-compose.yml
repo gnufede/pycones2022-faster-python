@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+       - ./postgres_data:/var/lib/postgresql/data
+
+  pypy39:
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.pypy39
+    volumes:
+      - ./flask-realworld-example-app:/usr/src/app
+    ports:
+      - "5000:5000"
+
+  cpython39:
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.cpython39
+    volumes:
+      - ./flask-realworld-example-app:/usr/src/app
+    ports:
+      - "5000:5000"
+
+  cpython311:
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.cpython311
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "5000:5000"
+
+  nuitka:
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.nuitka
+    ports:
+      - "5000:5000"
+
+  wrk:
+    image: williamyeh/wrk
+    depends_on:
+      - ${web:-cpython39}
+    command: "-t4 -c5 -d120s --timeout 3s --latency http://${web:-cpython39}:5000/api/articles"

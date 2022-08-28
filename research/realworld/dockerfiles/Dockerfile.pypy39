@@ -1,0 +1,12 @@
+FROM pypy:3.9
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+WORKDIR /usr/src/app
+
+COPY ./flask-realworld-example-app /usr/src/app
+
+RUN pypy3 -m pip install --no-cache-dir -r /usr/src/app/requirements.txt
+
+CMD [ "flask", "run", "--host=0.0.0.0", "--with-threads" ]

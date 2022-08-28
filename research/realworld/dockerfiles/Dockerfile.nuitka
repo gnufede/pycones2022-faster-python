@@ -1,0 +1,18 @@
+FROM python:3.9
+
+WORKDIR /usr/src/app
+
+RUN pip install nuitka orderedset
+
+COPY ./flask-realworld-example-app/requirements.txt /usr/src/app/
+COPY ./flask-realworld-example-app/requirements/ /usr/src/app/requirements/
+
+
+
+RUN pip install --no-cache-dir -r /usr/src/app/requirements.txt
+
+COPY ./flask-realworld-example-app/ /usr/src/app/
+
+RUN python -m nuitka --follow-imports /usr/src/app/autoapp.py --include-package=sqlalchemy
+
+CMD [ "./autoapp.bin" ]

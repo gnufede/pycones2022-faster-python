@@ -1,0 +1,11 @@
+FROM python:3.9
+
+WORKDIR /usr/src/app
+
+COPY ./flask-realworld-example-app /usr/src/app
+
+RUN pip install --no-cache-dir -r /usr/src/app/requirements.txt
+COPY script.sh /
+
+#CMD [ "/script.sh" ]
+CMD [ "flask", "run", "--host=0.0.0.0", "--with-threads" ]
