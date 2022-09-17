@@ -1,0 +1,21 @@
+FROM python:3.9
+
+
+RUN apt-get update && apt-get install -y \
+    python3-pip
+
+RUN pip3 install --no-cache-dir pybind11[global]
+
+WORKDIR /usr/src/app
+
+COPY cystring.h /usr/src/app/
+COPY pybind11string.cpp /usr/src/app/
+
+COPY script_pybind11.py /usr/src/app/
+COPY sample_headers.py /usr/src/app/
+
+#RUN python setup.py build_ext --inplace
+
+RUN c++ -O3 -Wall -shared -std=c++11 -fPIC $(python3 -m pybind11 --includes) pybind11string.cpp -o pybind11string.so
+
+CMD [ "python", "script_pybind11.py" ]

@@ -5,6 +5,7 @@ WORKDIR /usr/src/app
 RUN pip install nuitka orderedset
 
 COPY ./script.py ./
+COPY ./sample_headers.py ./
 
 RUN python -m nuitka --follow-imports ./script.py
 

@@ -1,0 +1,7 @@
+#+title: Faster Python
+#+author: Federico Mon
+
+* Speed wins
+
+* Can Python be faster?
+

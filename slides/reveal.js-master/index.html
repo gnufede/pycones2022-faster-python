@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Faster Python</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/white.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+			<section data-markdown>
+			<textarea data-template>
+				## Faster Python
+				 @gnufede
+				---
+				## Speed wins 🚀
+				---
+				## Our protagonist
+				```python
+				valid_user_agents = (
+					"useragent",
+					"user-agent",
+					"http-user-agent",
+					"request-user-agent",
+					"http-request-user-agent",
+				)
+
+				def find_user_agent_header(headers):
+					for k, v in headers.items():
+						for user_agent in valid_user_agents:
+							if k.lower().replace("_", "-") == user_agent:
+								return v
+					return None
+				```
+				---
+				## Our baseline
+				```docker
+				FROM python:3.9
+				WORKDIR /usr/src/app
+				CMD [ "python", "./script.py" ]
+				```
+				---
+				## Measuring
+				> “If you can’t measure it, you can’t improve it.”
+				---
+				## Measuring with timeit
+				```python
+				import timeit
+				print(
+					"timeit: %f"
+					% timeit.timeit(
+				        "find_user_agent_header(HEADERS)",
+				        globals=globals()
+					)
+				)
+				```
+				---
+				## Our contenders:
+				- Pypy
+				- Next Python release
+				- Nuitka
+				- Cython
+				- Pybind11
+				---
+				## Pypy
+				> A fast, compliant alternative implementation of Python
+				---
+				## Pypy docker
+				```
+				FROM pypy:3.9
+				WORKDIR /usr/src/app
+				CMD [ "pypy3", "./script.py" ]
+				```
+				---
+				## Pypy gotchas
+				- Runtime owner
+				- Not 100% compatible with CPython
+				---
+				## Next Python release (3.11)
+				[https://docs.python.org/3.11/whatsnew/3.11.html](https://docs.python.org/3.11/whatsnew/3.11.html)
+				---
+				## Python 3.11 docker
+				```
+				FROM python:3.11-rc
+				WORKDIR /usr/src/app
+				CMD [ "python", "./script.py" ]
+				```
+				---
+				## Python 3.11 gotchas
+				- Runtime owner
+				- Not fully tested yet
+				---
+				## Nuitka
+				[Nuitka The Python Compiler](https://nuitka.net/)
+				---
+				## Nuitka docker
+				```docker
+				FROM python:3.9
+				WORKDIR /usr/src/app
+				RUN pip install nuitka orderedset
+				COPY ./script.py ./
+				COPY ./sample_headers.py ./
+				RUN python -m nuitka --follow-imports ./script.py
+				CMD [ "./script.bin" ]
+				```
+
+			</textarea>
+			</section>
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>

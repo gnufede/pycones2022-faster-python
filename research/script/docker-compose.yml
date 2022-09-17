@@ -8,6 +8,16 @@ services:
     volumes:
       - .:/usr/src/app
 
+  pybind11:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.pybind11
+
+  cython:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.cython
+
   cpython39:
     build:
       context: .

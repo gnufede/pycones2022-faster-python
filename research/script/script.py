@@ -1,12 +1,27 @@
-import time
+from sample_headers import HEADERS
 
-start_time = time.time()
+valid_user_agent_header_formats = (
+    "useragent",
+    "user-agent",
+    "http-user-agent",
+    "request-user-agent",
+    "http-request-user-agent",
+)
 
-total = 0
-for i in range(1, 10000):
-    for j in range(1, 10000):
-        total += i + j
-print(f"The result is {total}")
-end_time = time.time()
 
-print(f"It took {end_time-start_time:.2f} seconds to compute")
+def find_user_agent_header(headers):
+    for k, v in headers.items():
+        for user_agent_format in valid_user_agent_header_formats:
+            if k.lower().replace("_", "-") == user_agent_format:
+                return v
+    return None
+
+
+if __name__ == "__main__":
+    import timeit
+
+    print("Header: %s" % find_user_agent_header(HEADERS))
+    print(
+        "timeit: %f"
+        % timeit.timeit("find_user_agent_header(HEADERS)", globals=globals())
+    )
