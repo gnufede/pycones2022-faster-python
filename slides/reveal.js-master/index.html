@@ -25,6 +25,17 @@
 				---
 				## Our protagonist
 				```python
+				from ..find_headers import get_user_agent
+				def header_parser(get_response):
+					def middleware(request):
+						response = get_response(request)
+						user_agent = get_user_agent(request.META)
+						return response
+					return middleware
+				```
+				---
+				## Our protagonist
+				```python
 				valid_user_agents = (
 					"useragent",
 					"user-agent",
@@ -33,7 +44,7 @@
 					"http-request-user-agent",
 				)
 
-				def find_user_agent_header(headers):
+				def get_user_agent(headers):
 					for k, v in headers.items():
 						for user_agent in valid_user_agents:
 							if k.lower().replace("_", "-") == user_agent:
@@ -106,12 +117,165 @@
 				FROM python:3.9
 				WORKDIR /usr/src/app
 				RUN pip install nuitka orderedset
-				COPY ./script.py ./
-				COPY ./sample_headers.py ./
+				COPY * ./
 				RUN python -m nuitka --follow-imports ./script.py
 				CMD [ "./script.bin" ]
 				```
+				---
+				## Nuitka gotchas
+				- Compilation time
+				- Some parts stripped out (like stacktrace)
+				---
+				## [Cython](https://cython.org/)
+				> Cython is an optimising static compiler for both the Python programming language and the extended Cython programming language (based on Pyrex)
+				---
+				## Cython docker
+				```docker
+				FROM python:3.9
+				RUN pip install --no-cache-dir Cython
+				COPY * /usr/src/app/
+				RUN python setup.py build_ext --inplace
+				CMD [ "python", "script_cython.py" ]
+				```
+				---
+				## Cython Cython .pyx
+				```python
+				# cython: c_string_type=unicode, c_string_encoding=utf8
+				cdef tuple valid_user_agents = (
+					"useragent",
+					"http-request-user-agent",
+				)
+				cpdef str find_user_agent(dict headers):
+					cdef str m, v, user_agent
+					for m, v in headers.items():
+						for user_agent in valid_user_agents:
+							if m.lower().replace("_", "-") == user_agent:
+								return v
+					return None
+				```
+				---
+				## Cython C++ .pyx
+				```python
+				# cython: c_string_type=unicode, c_string_encoding=utf8
+				# distutils: language = c++
+				from _cystring cimport cfind_user_agent
 
+				cpdef str find_user_agent(dict headers):
+					cdef str res = cfind_user_agent(headers)
+					return res
+				```
+				---
+				## Cython C++ .pxd
+				```python
+				from libcpp.unordered_map cimport unordered_map
+
+				cdef extern from "cystring.h" namespace "cystring":
+					char* cfind_user_agent_header(unordered_map[char*, char*] &headers);
+				```
+				---
+				## C++ cystring.h
+				```c++
+				#include <algorithm>
+				#include <iostream>
+				#include <string.h>
+				#include <string>
+				#include <unordered_map>
+
+				namespace cystring {
+
+				inline char manipulate_char(unsigned char c) {
+				if (c == '_')
+					return '-';
+				return std::tolower(c);
+				}
+
+				inline char *cmanipulate_string(const char *data) {
+				const int length = strlen(data); // get the length of the text
+				// allocate 'length' bytes + 1 (for null terminator) and cast to char*
+				char *lower = (char *)malloc(length + 1);
+				// set the last byte to a null terminator
+				lower[length] = 0;
+				// copy all character bytes to the new buffer using tolower
+				for (int i = 0; i < length; i++) {
+					lower[i] = manipulate_char(data[i]);
+				}
+				return lower;
+				}
+
+				inline void manipulate_string(std::string *data) {
+				std::transform(data->begin(), data->end(), data->begin(), manipulate_char);
+				}
+				```
+				---
+				## Cython gotchas
+				- Compilation required
+				- Generated code (Cython language) is hard to debug
+				---
+				## [PyBind11](https://pybind11.readthedocs.io/en/stable/)
+				> a lightweight header-only library that exposes C++ types in Python and vice versa
+				---
+				## PyBind11 docker
+				```docker
+				FROM python:3.9
+				RUN pip install --no-cache-dir pybind11[global]
+				COPY * /usr/src/app/
+				RUN c++ -O3 -Wall -shared -std=c++11 -fPIC $(python3 -m pybind11 --includes) pybind11string.cpp -o pybind11string.so
+				CMD [ "python", "script_pybind11.py" ]
+				```
+				---
+				## pybind11string.cpp
+				```c++
+				#include "cystring.h"
+				#include <pybind11/pybind11.h>
+				#include <pybind11/stl.h>
+
+				PYBIND11_MODULE(pybind11string, m) {
+				m.doc() = "my module docstring"; // optional module docstring
+				m.def("cfind_user_agent_header", &cystring::find_user_agent_header, "my function docstring");
+				}
+				```
+				---
+				## Results
+				```
+				script-pypy39-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pypy39-1      | timeit: 11.584930
+				script-pybind11-1    | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pybind11-1    | timeit: 18.623496
+				script-cpython311-1  | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython311-1  | timeit: 33.386458
+				script-cpython39-1   | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython39-1   | timeit: 51.445146
+				script-nuitka-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-nuitka-1      | timeit: 65.278711
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 41.354812
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 36.857849
+				```
+				---
+				## Speedup
+				51.44 / 11.58 = 4.44
+				---
+				## [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law)
+				> the overall performance improvement gained by optimizing a single part of a system is limited by the fraction of time that the improved part is actually used
+				---
+				## [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law)
+				`$$ {\displaystyle S_{\text{latency}}(s)={\frac {1}{(1-p)+{\frac {p}{s}}}}} $$`
+				<!-- `$$ J(\theta_0,\theta_1) = \sum_{i=0} $$` -->
+				---
+				## Our case
+				- total request time: 11.07 ms
+				- function time: 0.35714 ms
+				- proportion: 0.033
+				- speedup: 4
+				`$$ {\displaystyle S_{\text{latency}}={\frac {1}{(1-0.033)+{\frac {0.033}{4}}}}=1.025} $$`
+				---
+				## Dream case
+				- total request time: 11.07 ms
+				- function time: 0.35714 ms
+				- proportion: 0.033
+				- speedup: 400
+				`$$ {\displaystyle S_{\text{latency}}={\frac {1}{(1-0.033)+{\frac {0.033}{400}}}}=1.034} $$`
 			</textarea>
 			</section>
 			</div>
@@ -121,6 +285,7 @@
 		<script src="plugin/notes/notes.js"></script>
 		<script src="plugin/markdown/markdown.js"></script>
 		<script src="plugin/highlight/highlight.js"></script>
+		<script src="plugin/math/math.js"></script>
 		<script>
 			// More info about initialization & config:
 			// - https://revealjs.com/initialization/
@@ -129,7 +294,7 @@
 				hash: true,
 
 				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.KaTeX]
 			});
 		</script>
 	</body>
