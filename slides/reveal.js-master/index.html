@@ -109,10 +109,12 @@
 				script-cpython39-1   | timeit: 50.803067
 				```
 				---
+				![what do we want](img/what_do_we_want.jpg)
+				---
 				## Defining success
 				- speedup = old / new
-				- speedup = 50.80/50.80 = 1
-				- 50.80/x > 1
+				- 50.80 / 50.80 = 1
+				- 50.80 / x > 1
 				---
 				## Our contenders:
 				- [Next Python release (3.11)](https://docs.python.org/3.11/whatsnew/3.11.html)
@@ -364,6 +366,8 @@
 				|cython c++|18.81|2.70|
 				|pybind11|18.21|2.78|
 				---
+  				![My Python code runs 2.78x faster](img/so_fast.jpg)
+  				---
 				## Analyzing the request (tools)
 				- [py-spy](https://github.com/benfred/py-spy)
 				- [speedscope.app](speedscope.app)
@@ -386,6 +390,8 @@
 				- proportion: 0.033
 				- speedup: 2.78
 				`$$ {\displaystyle S_{\text{latency}}={\frac {1}{(1-0.033)+{\frac {0.033}{2.78}}}}=1.021} $$`
+				---
+  				![My Python code runs 1.021x faster](img/not_so_fast.jpg)
 				---
 				## Dream case
 				- total request time: 11.07 ms
@@ -419,6 +425,8 @@
 				---
 				## Thanks!
 				![t.hanks](img/t.hanks.gif)
+
+				[We're hiring: datadoghq.com/jobs-engineering](https://www.datadoghq.com/jobs-engineering/)
 			</textarea>
 			</section>
 			</div>
