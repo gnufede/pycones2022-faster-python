@@ -19,25 +19,18 @@
 			<section data-markdown>
 			<textarea data-template>
 				## Faster Python
+				![qrcode](img/qrcode.png)
+
+				[github.com/gnufede/pycones2022-faster-python](https://github.com/gnufede/pycones2022-faster-python)
+
 				Granada, Oct 01, 2022
 				---
-				## Who am I
+				## Who is Federico Mon
 				![my interests](img/myself.png)
 				[@gnufede](https://twitter.com/gnufede)
 				---
-				## Speed wins 🚀
+				## Rationale: Speed wins 🚀
 				![race car](img/race-car.jpg)
-				---
-				## Our protagonist
-				```python
-				from ..find_headers import get_user_agent
-				def header_parser(get_response):
-					def middleware(request):
-						response = get_response(request)
-						user_agent = get_user_agent(request.META)
-						return response
-					return middleware
-				```
 				---
 				## Our protagonist
 				```python
@@ -60,23 +53,36 @@
 				## Our protagonist
 				```python
 				valid_user_agents = (
-					"useragent",
-					"user-agent",
-					"http-user-agent",
-					"request-user-agent",
-					"http-request-user-agent",
+				  "useragent",
+				  "user-agent",
+				  "http-user-agent",
+				  "request-user-agent",
+				  "http-request-user-agent",
 				)
 
 				def get_user_agent(headers):
-					for k, v in headers.items():
-						for user_agent in valid_user_agents:
-							if k.lower().replace("_", "-") == user_agent:
-								return v
-					return None
+				  for k, v in headers.items():
+				    for user_agent in valid_user_agents:
+				      if k.lower().replace("_", "-") == user_agent:
+				    	return v
+				  return None
+				```
+				---
+				## Our protagonist
+				```python
+				from ..find_headers import get_user_agent
+				def header_parser(get_response):
+				  def middleware(request):
+				    response = get_response(request)
+				    user_agent = get_user_agent(request.META)
+				    return response
+				  return middleware
 				```
 				---
 				## Measuring
 				> “If you can’t measure it, you can’t improve it.”
+
+				Peter Drucker (?)
 				---
 				## Measuring with timeit
 				```python
@@ -106,23 +112,22 @@
 				## Defining success
 				- speedup = old / new
 				- speedup = 50.80/50.80 = 1
-				- x < 50.80
 				- 50.80/x > 1
 				---
 				## Our contenders:
-				- Next Python release
-				- Pypy
-				- Nuitka
-				- Cython
-				- PyBind11
+				- [Next Python release (3.11)](https://docs.python.org/3.11/whatsnew/3.11.html)
+				- [Pypy](https://www.pypy.org/)
+				- [Nuitka](https://nuitka.net/)
+				- [Cython](https://cython.org/)
+				- [PyBind11](https://github.com/pybind/pybind11)
 				---
 				## Other contenders:
-				- Jython
-				- IronPython
-				- RustPython
-				- Stackless
-				- Numba
-				- PyO3
+				- [Jython](https://www.jython.org/)
+				- [IronPython](https://ironpython.net/)
+				- [RustPython](https://rustpython.github.io/)
+				- [Stackless](https://github.com/stackless-dev/stackless/)
+				- [Numba](https://numba.pydata.org/)
+				- [PyO3](https://pyo3.rs/)
 				- [cffi](https://cffi.readthedocs.io/en/latest/)
 				---
 				## Next Python release (3.11)
@@ -139,6 +144,12 @@
 				- Runtime owner
 				- Not fully tested yet
 				---
+				## Result
+				```
+				script-cpython311-1  | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython311-1  | timeit: 32.825104
+				```
+				---
 				## Pypy
 				> A fast, compliant alternative implementation of Python
 				---
@@ -147,6 +158,12 @@
 				FROM pypy:3.9
 				WORKDIR /usr/src/app
 				CMD [ "pypy3", "./script.py" ]
+				```
+				---
+				## Result
+				```
+				script-pypy39-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pypy39-1      | timeit: 12.245769
 				```
 				---
 				## Pypy gotchas
@@ -164,6 +181,12 @@
 				COPY * ./
 				RUN python -m nuitka --module ./find_headers.py
 				CMD ["python", "./script.py" ]
+				```
+				---
+				## Result
+				```
+				script-nuitka-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-nuitka-1      | timeit: 65.005592
 				```
 				---
 				## Nuitka gotchas
@@ -189,65 +212,78 @@
 				from Cython.Build import cythonize
 
 				setup(
-				name="Hello world app",
-				ext_modules=cythonize("cyscript.pyx", "_cystring.pxd"),
-				language="C++",
-				zip_safe=False,
+				  name="Hello world app",
+				  ext_modules=cythonize("cyscript.pyx", "_cystring.pxd"),
+				  language="C++",
+				  zip_safe=False,
 				)
 				```
 				---
-				## Cython Cython .pyx
+				## Cython 1: Cython .pyx
 				```python
 				# cython: c_string_type=unicode, c_string_encoding=utf8
 				cdef tuple valid_user_agents = (
-					"useragent",
-					"http-request-user-agent",
+				  "useragent",
+				  "http-request-user-agent",
 				)
 				cpdef str find_user_agent(dict headers):
-					cdef str m, v, user_agent
-					for m, v in headers.items():
-						for user_agent in valid_user_agents:
-							if m.lower().replace("_", "-") == user_agent:
-								return v
-					return None
+				  cdef str m, v, user_agent
+				  for m, v in headers.items():
+				    for user_agent in valid_user_agents:
+				      if m.lower().replace("_", "-") == user_agent:
+				        return v
+				  return None
 				```
 				---
-				## Cython C++ .pyx
+				## Result
+				```
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 40.818121
+				```
+				---
+				## Cython 2: C++ .pyx
 				```python
 				# cython: c_string_type=unicode, c_string_encoding=utf8
 				# distutils: language = c++
 				from _cystring cimport cfind_user_agent
 
 				cpdef str find_user_agent(dict headers):
-					cdef str res = cfind_user_agent(headers)
-					return res
+				  cdef str res = cfind_user_agent(headers)
+				  return res
 				```
 				---
-				## Cython C++ .pxd
+				## Cython 2: C++ .pxd
 				```python
 				from libcpp.unordered_map cimport unordered_map
 
 				cdef extern from "cystring.h" namespace "cystring":
-					char* cfind_user_agent_header(unordered_map[char*, char*] &headers);
+				  char* cfind_user_agent_header(
+				    unordered_map[char*, char*] &headers
+				  );
 				```
 				---
-				## C++ cystring.h
+				## Cython 2: C++ cystring.h
 				```c++
 				namespace cystring {
-
 				inline std::string find_user_agent_header(
 				const std::unordered_map<std::string, std::string> &headers) {
 				for (const auto &header : headers) {
-					for (int i = 0; i < 5; i++) {
-						std::string header_string = header.first;
-						manipulate_string(&(header_string));
-						if (header_string == valid_user_agent_formats[i]) {
-							return (std::string)header.second;
-						}
-					}
+				  for (int i = 0; i < 5; i++) {
+				    std::string header_string = header.first;
+				    manipulate_string(&(header_string));
+				    if (header_string == valid_user_agent_formats[i]) {
+				      return (std::string)header.second;
+				    }
+				  }
 				}
 				return NULL;
 				}
+				```
+				---
+				## Result
+				```
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 18.815749
 				```
 				---
 				## Cython gotchas
@@ -283,6 +319,12 @@
 				    "my function docstring"
 				);
 				}
+				```
+				---
+				## Result
+				```
+				script-pybind11-1    | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pybind11-1    | timeit: 18.212787
 				```
 				---
 				## PyBind11 gotchas
@@ -358,7 +400,7 @@
 				![python ecosystem is awesome](img/rainforest.jpg)
 				---
 				## 2. Avoid premature optimization
-				> Premature optimization is the root of all evil
+				> “Premature optimization is the root of all evil”
 
 				Donald Knuth
 				---
@@ -369,6 +411,8 @@
 				![have everything under control](img/have-everything-under-control.png)
 				---
 				## Questions?
+				---
+				## How about these questions?
 				- Why didn't you start by running Py-Spy?
 				- Would you run any of those in production?
 				- Which one would you choose?
