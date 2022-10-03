@@ -1,0 +1,13 @@
+FROM python:3.9
+
+WORKDIR /usr/src/app
+
+RUN pip install nuitka orderedset
+
+COPY ./script.py ./
+COPY ./find_headers.py ./
+COPY ./sample_headers.py ./
+
+RUN python -m nuitka --module ./find_headers.py
+
+CMD ["python", "./script.py" ]

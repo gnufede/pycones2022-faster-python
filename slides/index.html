@@ -1,0 +1,452 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Faster Python</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/white.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/default.css">
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+			<section data-markdown>
+			<textarea data-template>
+				## Faster Python
+				![qrcode](img/qrcode.png)
+
+				[github.com/gnufede/pycones2022-faster-python](https://github.com/gnufede/pycones2022-faster-python)
+
+				Granada, Oct 01, 2022
+				---
+				## Who is Federico Mon
+				![my interests](img/myself.png)
+				[@gnufede](https://twitter.com/gnufede)
+				---
+				## Rationale: Speed wins 🚀
+				![race car](img/race-car.jpg)
+				---
+				## Our protagonist
+				```python
+				HEADERS = {
+				"SERVER_PROTOCOL": "HTTP/1.1",
+				"SERVER_SOFTWARE": "WSGIServer/0.2",
+				"REQUEST_METHOD": "GET",
+				"PATH_INFO": "/",
+				"QUERY_STRING": "",
+				"CONTENT_TYPE": "text/plain",
+				"HTTP_CONNECTION": "keep-alive",
+				"HTTP_CACHE_CONTROL": "max-age=0",
+				"HTTP_USER_AGENT": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36",
+				"HTTP_ACCEPT_ENCODING": "gzip, deflate",
+				"HTTP_ACCEPT_LANGUAGE": "en-US,en;q=0.9,es;q=0.8",
+				...
+
+				```
+				---
+				## Our protagonist
+				```python
+				valid_user_agents = (
+				  "useragent",
+				  "user-agent",
+				  "http-user-agent",
+				  "request-user-agent",
+				  "http-request-user-agent",
+				)
+
+				def get_user_agent(headers):
+				  for k, v in headers.items():
+				    for user_agent in valid_user_agents:
+				      if k.lower().replace("_", "-") == user_agent:
+				    	return v
+				  return None
+				```
+				---
+				## Our protagonist
+				```python
+				from ..find_headers import get_user_agent
+				def header_parser(get_response):
+				  def middleware(request):
+				    response = get_response(request)
+				    user_agent = get_user_agent(request.META)
+				    return response
+				  return middleware
+				```
+				---
+				## Measuring
+				> “If you can’t measure it, you can’t improve it.”
+
+				Peter Drucker (?)
+				---
+				## Measuring with timeit
+				```python
+				import timeit
+				print(
+					"timeit: %f"
+					% timeit.timeit(
+				        "find_user_agent_header(HEADERS)",
+				        globals=globals()
+					)
+				)
+				```
+				---
+				## Our baseline
+				```docker
+				FROM python:3.9
+				WORKDIR /usr/src/app
+				CMD [ "python", "./script.py" ]
+				```
+				---
+				## Result
+				```
+				script-cpython39-1   | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython39-1   | timeit: 50.803067
+				```
+				---
+				![what do we want](img/what_do_we_want.jpg)
+				---
+				## Defining success
+				- speedup = old / new
+				- 50.80 / 50.80 = 1
+				- 50.80 / x > 1
+				---
+				## Our contenders:
+				- [Next Python release (3.11)](https://docs.python.org/3.11/whatsnew/3.11.html)
+				- [Pypy](https://www.pypy.org/)
+				- [Nuitka](https://nuitka.net/)
+				- [Cython](https://cython.org/)
+				- [PyBind11](https://github.com/pybind/pybind11)
+				---
+				## Other contenders:
+				- [Jython](https://www.jython.org/)
+				- [IronPython](https://ironpython.net/)
+				- [RustPython](https://rustpython.github.io/)
+				- [Stackless](https://github.com/stackless-dev/stackless/)
+				- [Numba](https://numba.pydata.org/)
+				- [PyO3](https://pyo3.rs/)
+				- [cffi](https://cffi.readthedocs.io/en/latest/)
+				---
+				## Next Python release (3.11)
+				[https://docs.python.org/3.11/whatsnew/3.11.html](https://docs.python.org/3.11/whatsnew/3.11.html)
+				---
+				## Python 3.11 docker
+				```
+				FROM python:3.11-rc
+				WORKDIR /usr/src/app
+				CMD [ "python", "./script.py" ]
+				```
+				---
+				## Python 3.11 gotchas
+				- Runtime owner
+				- Not fully tested yet
+				---
+				## Result
+				```
+				script-cpython311-1  | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython311-1  | timeit: 32.825104
+				```
+				---
+				## [Pypy](https://www.pypy.org/)
+				> A fast, compliant alternative implementation of Python
+				---
+				## Pypy docker
+				```
+				FROM pypy:3.9
+				WORKDIR /usr/src/app
+				CMD [ "pypy3", "./script.py" ]
+				```
+				---
+				## Result
+				```
+				script-pypy39-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pypy39-1      | timeit: 12.245769
+				```
+				---
+				## Pypy gotchas
+				- Runtime owner
+				- Not 100% compatible with CPython
+				---
+				## Nuitka
+				[Nuitka The Python Compiler](https://nuitka.net/)
+				---
+				## Nuitka docker
+				```docker
+				FROM python:3.9
+				WORKDIR /usr/src/app
+				RUN pip install nuitka orderedset
+				COPY * ./
+				RUN python -m nuitka --module ./find_headers.py
+				CMD ["python", "./script.py" ]
+				```
+				---
+				## Result
+				```
+				script-nuitka-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-nuitka-1      | timeit: 65.005592
+				```
+				---
+				## Nuitka gotchas
+				- Compilation time
+				- Some parts stripped out (like stacktrace)
+				- Only works with CPython
+				---
+				## [Cython](https://cython.org/)
+				> Cython is an optimising static compiler for both the Python programming language and the extended Cython programming language (based on Pyrex)
+				---
+				## Cython docker
+				```docker
+				FROM python:3.9
+				RUN pip install --no-cache-dir Cython
+				COPY * /usr/src/app/
+				RUN python setup.py build_ext --inplace
+				CMD [ "python", "script_cython.py" ]
+				```
+				---
+				## Cython setup.py
+				```
+				from setuptools import setup
+				from Cython.Build import cythonize
+
+				setup(
+				  name="Hello world app",
+				  ext_modules=cythonize("cyscript.pyx", "_cystring.pxd"),
+				  language="C++",
+				  zip_safe=False,
+				)
+				```
+				---
+				## Cython 1: Cython .pyx
+				```python
+				# cython: c_string_type=unicode, c_string_encoding=utf8
+				cdef tuple valid_user_agents = (
+				  "useragent",
+				  "http-request-user-agent",
+				)
+				cpdef str find_user_agent(dict headers):
+				  cdef str m, v, user_agent
+				  for m, v in headers.items():
+				    for user_agent in valid_user_agents:
+				      if m.lower().replace("_", "-") == user_agent:
+				        return v
+				  return None
+				```
+				---
+				## Result
+				```
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 40.818121
+				```
+				---
+				## Cython 2: C++ .pyx
+				```python
+				# cython: c_string_type=unicode, c_string_encoding=utf8
+				# distutils: language = c++
+				from _cystring cimport cfind_user_agent
+
+				cpdef str find_user_agent(dict headers):
+				  cdef str res = cfind_user_agent(headers)
+				  return res
+				```
+				---
+				## Cython 2: C++ .pxd
+				```python
+				from libcpp.unordered_map cimport unordered_map
+
+				cdef extern from "cystring.h" namespace "cystring":
+				  char* cfind_user_agent_header(
+				    unordered_map[char*, char*] &headers
+				  );
+				```
+				---
+				## Cython 2: C++ cystring.h
+				```c++
+				namespace cystring {
+				inline std::string find_user_agent_header(
+				const std::unordered_map<std::string, std::string> &headers) {
+				for (const auto &header : headers) {
+				  for (int i = 0; i < 5; i++) {
+				    std::string header_string = header.first;
+				    manipulate_string(&(header_string));
+				    if (header_string == valid_user_agent_formats[i]) {
+				      return (std::string)header.second;
+				    }
+				  }
+				}
+				return NULL;
+				}
+				```
+				---
+				## Result
+				```
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 18.815749
+				```
+				---
+				## Cython gotchas
+				- Compilation required
+				- Generated code (Cython language) is hard to debug
+				- Conversion toll
+				- Only works with CPython
+				---
+				## [PyBind11](https://pybind11.readthedocs.io/en/stable/)
+				> a lightweight header-only library that exposes C++ types in Python and vice versa
+				---
+				## PyBind11 docker
+				```docker
+				FROM python:3.9
+				RUN pip install --no-cache-dir pybind11[global]
+				COPY * /usr/src/app/
+				RUN c++ -O3 -Wall -shared -std=c++11 -fPIC \
+					$(python3 -m pybind11 --includes) \
+					pybind11string.cpp -o pybind11string.so
+				CMD [ "python", "script_pybind11.py" ]
+				```
+				---
+				## pybind11string.cpp
+				```c++
+				#include "cystring.h"
+				#include <pybind11/pybind11.h>
+				#include <pybind11/stl.h>
+
+				PYBIND11_MODULE(pybind11string, m) {
+				m.doc() = "my module docstring"; // optional module docstring
+				m.def("cfind_user_agent_header",
+				    &cystring::find_user_agent_header,
+				    "my function docstring"
+				);
+				}
+				```
+				---
+				## Result
+				```
+				script-pybind11-1    | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pybind11-1    | timeit: 18.212787
+				```
+				---
+				## PyBind11 gotchas
+				- Compilation required
+				- Conversion toll
+				- Works with CPython and PyPy
+				---
+				## Photo finish
+				![checkered flag](img/checkered_flag.png)
+				---
+				## Contest results
+				```
+				script-pypy39-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pypy39-1      | timeit: 12.245769
+				script-pybind11-1    | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-pybind11-1    | timeit: 18.212787
+				script-cpython311-1  | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython311-1  | timeit: 32.825104
+				script-cpython39-1   | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cpython39-1   | timeit: 50.803067
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 40.818121
+				script-cython-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-cython-1      | timeit: 18.815749
+				script-nuitka-1      | Header: Mozilla/5.0 (X11; Linux x86_64)...
+				script-nuitka-1      | timeit: 65.005592
+				```
+				---
+				## Results
+				|tech|time|speedup|
+				|---|---|---|
+				|python 3.9|50.80|1|
+				|python 3.11|32.82|1.54|
+				|pypy 3.9|12.25|4.14|
+				|nuitka 3.9|65.00|0.78|
+				|cython|40.81|1.24|
+				|cython c++|18.81|2.70|
+				|pybind11|18.21|2.78|
+				---
+  				![My Python code runs 2.78x faster](img/so_fast.jpg)
+  				---
+				## Analyzing the request (tools)
+				- [py-spy](https://github.com/benfred/py-spy)
+				- [speedscope.app](speedscope.app)
+				---
+				## Analyzing the request
+				![Alt text](img/request.png)
+				---
+				## [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law)
+				> the overall performance improvement gained by optimizing a single part of a system is limited by the fraction of time that the improved part is actually used
+				---
+				## [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law)
+				![folding paper](img/folding-paper.png)
+				---
+				## [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law)
+				`$$ {\displaystyle S_{\text{latency}}(s)={\frac {1}{(1-p)+{\frac {p}{s}}}}} $$`
+				---
+				## Our case
+				- total request time: 11.07 ms
+				- function time: 0.35714 ms
+				- proportion: 0.033
+				- speedup: 2.78
+				`$$ {\displaystyle S_{\text{latency}}={\frac {1}{(1-0.033)+{\frac {0.033}{2.78}}}}=1.021} $$`
+				---
+  				![My Python code runs 1.021x faster](img/not_so_fast.jpg)
+				---
+				## Dream case
+				- total request time: 11.07 ms
+				- function time: 0.35714 ms
+				- proportion: 0.033
+				- speedup: **1_000_000**
+				`$$ {\displaystyle S_{\text{latency}}={\frac {1}{(1-0.033)+{\frac {0.033}{1,000,000}}}}=1.034} $$`
+				---
+				## Conclusions
+				---
+				## 1. The Python ecosystem is awesome
+				![python ecosystem is awesome](img/rainforest.jpg)
+				---
+				## 2. Avoid premature optimization
+				> “Premature optimization is the root of all evil”
+
+				Donald Knuth
+				---
+				## 3. Measure all the things
+				![measure all the things](img/measure.jpg)
+				---
+				## 4. You can't improve what you can't control
+				![have everything under control](img/have-everything-under-control.png)
+				---
+				## Questions?
+				---
+				## How about these questions?
+				- Why didn't you start by running Py-Spy?
+				- Would you run any of those in production?
+				- Which one would you choose?
+				---
+				## Thanks!
+				![t.hanks](img/t.hanks.gif)
+
+				[We're hiring: datadoghq.com/jobs-engineering](https://www.datadoghq.com/jobs-engineering/)
+			</textarea>
+			</section>
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script src="plugin/math/math.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.KaTeX]
+			});
+		</script>
+	</body>
+</html>

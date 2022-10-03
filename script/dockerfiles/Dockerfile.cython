@@ -1,0 +1,24 @@
+FROM python:3.9
+
+
+RUN apt-get update && apt-get install -y \
+    python3-pip
+
+RUN pip3 install --no-cache-dir Cython
+
+WORKDIR /usr/src/app
+
+#COPY cyscript.pyx /usr/src/app/
+#COPY setup.py /usr/src/app/
+#COPY script_cython.py /usr/src/app/
+
+COPY cystring.h /usr/src/app/
+COPY _cystring.pxd /usr/src/app/
+COPY cyscript2.pyx /usr/src/app/
+COPY setup.py /usr/src/app/
+COPY script_cython2.py /usr/src/app/
+COPY sample_headers.py /usr/src/app/
+
+RUN python setup.py build_ext --inplace
+
+CMD [ "python", "script_cython2.py" ]
