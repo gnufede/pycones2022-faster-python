@@ -1,3 +1,7 @@
+## Slides
+
+The slides are at `slides`.
+They are live at: https://gnufede.github.io/pycones2022-faster-python
 
 ## Research
 
@@ -10,8 +14,7 @@ The goal is to compare cpython 3.9 (baseline) to
 - cython
 - pybind11
 
-### Script
-
+### Run
 ``` sh
 $ cd script
 $ docker-compose up
